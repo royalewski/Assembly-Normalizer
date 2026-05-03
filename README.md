@@ -1,7 +1,7 @@
 # Assembly-Normalizer
 
 
-A small cross-platform Python tool for cleaning and normalizing `objdump` disassembly output.
+A small cross-platform Python tool for cleaning and normalizing, optimized for `objdump` disassembly output.
 
 Raw disassembly output contains many values that can change between builds, such as instruction addresses, opcode bytes, jump targets and memory offsets. These values are often useful during reverse engineering, but they can add noise when comparing files or preparing data for automated analysis.
 
@@ -57,13 +57,13 @@ jmp L140001050
 Example:
 
 ```bash
-objdump -d -Mintel program.exe > program.asm
+objdump -d -M intel program.exe > program.asm
 ```
 
 Then clean it:
 
 ```bash
-python clean_asm.py program.asm
+python asm_cleaner.py program.asm
 ```
 
 ## License
