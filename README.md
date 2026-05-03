@@ -1,5 +1,5 @@
 # Assembly-Normalizer
-# objdump-cleaner
+
 
 A small cross-platform Python tool for cleaning and normalizing `objdump` disassembly output.
 
