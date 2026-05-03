@@ -35,15 +35,21 @@ input_clean.asm
 Input:
 
 ```asm
-00401024: 01 9c 51 8b 0d dc 05    add DWORD PTR [ecx+edx*2+0x5dc0d8b],ebx
-0040102b: e9 50 00 00 00          jmp 401080 <main+0x20>
+140001025:	65 67 48 8b 00       	mov    rax,QWORD PTR gs:[eax]
+14000102a:	48 8b 70 08          	mov    rsi,QWORD PTR [rax+0x8]
+14000102e:	48 8b 1d ab 97 00 00 	mov    rbx,QWORD PTR [rip+0x97ab]        # 14000a7e0 <.refptr.__native_startup_lock>
+140001035:	48 8b 3d b4 e1 00 00 	mov    rdi,QWORD PTR [rip+0xe1b4]        # 14000f1f0 <__imp_Sleep>
+14000103c:	eb 12                	jmp    140001050 <__tmainCRTStartup+0x40>
 ```
 
 Output:
 
 ```asm
-add DWORD PTR [ecx+edx*2+<OFF>],ebx
-jmp L401080
+mov rax,QWORD PTR gs:[eax]
+mov rsi,QWORD PTR [rax+<OFF>]
+mov rbx,QWORD PTR [rip+<OFF>]
+mov rdi,QWORD PTR [rip+<OFF>]
+jmp L140001050
 ```
 
 ## Generating disassembly with objdump
