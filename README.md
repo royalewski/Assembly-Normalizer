@@ -3,8 +3,9 @@
 
 A small cross-platform Python tool for cleaning and normalizing `objdump` disassembly output.
 
-The script removes instruction addresses, opcode bytes, file format metadata and comments.  
-It also normalizes selected jump/call targets and memory offsets.
+Raw disassembly output contains many values that can change between builds, such as instruction addresses, opcode bytes, jump targets and memory offsets. These values are often useful during reverse engineering, but they can add noise when comparing files or preparing data for automated analysis.
+
+This tool normalizes selected parts of disassembly output to make it cleaner and more stable. The script removes instruction addresses, opcode bytes, file format metadata and comments. It also normalizes selected jump/call targets and memory offsets.
 
 ## Features
 
