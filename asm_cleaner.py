@@ -10,8 +10,8 @@ def make_output_name(input_path: Path) -> Path:
 
 def read_text_auto(path: Path) -> str:
     """
-    Czyta tekst cross-platformowo.
-    Obsługuje normalne UTF-8 oraz UTF-16 z BOM / bez BOM.
+    Reads text in a cross-platform way.
+    Handles UTF-8 and basic UTF-16 cases.
     """
     data = path.read_bytes()
 
@@ -21,8 +21,7 @@ def read_text_auto(path: Path) -> str:
     if data.startswith(b"\xfe\xff"):
         return data.decode("utf-16-be", errors="replace")
 
-    # Heurystyka dla UTF-16 bez BOM:
-    # ASCII w UTF-16 LE wygląda np. tak: 41 00 42 00 43 00
+    # Heuristic for UTF-16 without BOM.
     if len(data) >= 4:
         even_nuls = data[0::2].count(0)
         odd_nuls = data[1::2].count(0)
@@ -42,12 +41,12 @@ def is_hex_byte(token: str) -> bool:
 
 def remove_opcode_bytes(line: str) -> str:
     """
-    Usuwa bajty opcode z początku linii.
+    Removes opcode bytes from the beginning of a line.
 
-    Przykład:
+    Example:
         e9 7b 19 16 01    jmp 0x1562980
 
-    Wynik:
+    Result:
         jmp 0x1562980
     """
     tokens = line.split()
@@ -61,12 +60,10 @@ def remove_opcode_bytes(line: str) -> str:
 
 def replace_symbol_target(line: str) -> str:
     """
-    Zamienia cele ze znakiem symbolu:
-
+    Converts:
         je 1016 <main+0x10>
 
-    na:
-
+    Into:
         je L1016
     """
     return re.sub(
@@ -78,30 +75,32 @@ def replace_symbol_target(line: str) -> str:
 
 def replace_bare_target(line: str) -> str:
     """
-    Zamienia gołe cele skoków/calli:
+    Converts bare jump/call targets:
 
         jmp 1020
         je 401000
         call 1234
 
-    na:
+    Into:
 
         jmp L1020
         je L401000
         call L1234
 
-    Tylko gdy linia ma dokładnie dwa tokeny:
-        instrukcja hex
+    Only when the line has exactly two tokens:
+        mnemonic hex
     """
     parts = line.split()
 
     if len(parts) != 2:
         return line
 
-    mnemonic = parts[0]
-    operand = parts[1]
+    mnemonic, operand = parts
 
-    if re.fullmatch(r"[A-Za-z][A-Za-z0-9_.]*", mnemonic) and re.fullmatch(r"[0-9a-fA-F]+", operand):
+    if (
+        re.fullmatch(r"[A-Za-z][A-Za-z0-9_.]*", mnemonic)
+        and re.fullmatch(r"[0-9a-fA-F]+", operand)
+    ):
         return f"{mnemonic} L{operand}"
 
     return line
@@ -109,39 +108,44 @@ def replace_bare_target(line: str) -> str:
 
 def normalize_memory_offsets(line: str) -> str:
     """
-    Normalizuje offsety hex wewnątrz adresowania pamięci.
+    Normalizes hex offsets inside memory addressing brackets.
 
-    Przykłady:
-        [ecx+edx*2+0x5dc0d8b] -> [ecx+edx*2+<OFF>]
-        [ebp-0x10]            -> [ebp-<OFF>]
-        [rsp+0x20]            -> [rsp+<OFF>]
-        [rip+0x1234]          -> [rip+<OFF>]
+    Examples:
+        [rip+0x1234]              -> [rip+<OFF>]
+        [rbp-0x10]                -> [rbp-<OFF>]
+        [ecx+edx*2+0x5dc0d8b]     -> [ecx+edx*2+<OFF>]
+        [eax+0x1234]              -> [eax+<OFF>]
+        [ebp+ecx*4-0x20]          -> [ebp+ecx*4-<OFF>]
     """
-    # plusowe offsety w nawiasach []
-    line = re.sub(
-        r"\[([^\]]*?)\+0x[0-9a-fA-F]+([^\]]*?)\]",
-        r"[\1+<OFF>\2]",
-        line,
-    )
 
-    # minusowe offsety w nawiasach []
-    line = re.sub(
-        r"\[([^\]]*?)-0x[0-9a-fA-F]+([^\]]*?)\]",
-        r"[\1-<OFF>\2]",
-        line,
-    )
+    def normalize_bracket(match: re.Match) -> str:
+        content = match.group(1)
 
-    return line
+        content = re.sub(
+            r"\+0x[0-9a-fA-F]+",
+            r"+<OFF>",
+            content,
+        )
+
+        content = re.sub(
+            r"-0x[0-9a-fA-F]+",
+            r"-<OFF>",
+            content,
+        )
+
+        return f"[{content}]"
+
+    return re.sub(r"\[([^\]]+)\]", normalize_bracket, line)
 
 
 def normalize_line(line: str) -> str:
-    # Usuń komentarz po #
+    # Remove comment after #
     line = re.sub(r"[ \t]*#.*", "", line).strip()
 
     if not line:
         return ""
 
-    # Jeżeli linia zaczyna się od "ADDR:", usuń adres i bajty opcode
+    # If line starts with "ADDR:", remove address and opcode bytes.
     if re.match(r"^[0-9a-fA-F]+:", line):
         line = re.sub(r"^[0-9a-fA-F]+:[ \t]*", "", line).strip()
 
@@ -153,14 +157,14 @@ def normalize_line(line: str) -> str:
         if not line:
             return ""
 
-    # Normalizacja offsetów w adresowaniu pamięci
+    # Normalize memory offsets.
     line = normalize_memory_offsets(line)
 
-    # Cele skoków/calli z symbolem:
+    # Symbol targets:
     # je 1016 <main+0x10> -> je L1016
     line = replace_symbol_target(line)
 
-    # Gołe cele:
+    # Bare targets:
     # jmp 1020 -> jmp L1020
     line = replace_bare_target(line)
 
@@ -169,14 +173,13 @@ def normalize_line(line: str) -> str:
 
 def clean_asm(input_path: Path, output_path: Path) -> None:
     cleaned_lines = []
-
     text = read_text_auto(input_path)
 
     for raw_line in text.splitlines():
         line = raw_line.rstrip("\r\n")
 
-        # Nagłówek funkcji:
-        # 00401000 <.text>: -> <FUNC_START .text>
+        # Function header:
+        # 0000 <name>: -> <FUNC_START name>
         match = re.match(r"^[0-9a-fA-F]+[ \t]+<([^>]+)>:", line)
 
         if match:
@@ -184,8 +187,8 @@ def clean_asm(input_path: Path, output_path: Path) -> None:
             cleaned_lines.append(f"<FUNC_START {name}>")
             continue
 
-        # Usuń linie typu:
-        # gta_sa.exe:     file format pei-i386
+        # Remove lines like:
+        # xxx: file format ...
         if re.match(r"^[^ \t].*file format", line):
             continue
 
