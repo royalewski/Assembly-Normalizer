@@ -21,7 +21,7 @@ This tool normalizes selected parts of disassembly output to make it cleaner and
 ## Usage
 
 ```bash
-python clean_asm.py input.asm
+python asm_cleaner.py input.asm
 ```
 
 The output file is created automatically:
